@@ -375,16 +375,39 @@ class SearchCore
 		return $features;
 	}
 
-	protected static function getProductsToIndex($total_languages, $id_product = false, $limit = 50)
+	protected static function getProductsToIndex($total_languages, $id_product = false, $limit = 50, $weight_array)
 	{
 		// Adjust the limit to get only "whole" products, in every languages (and at least one)
 		$max_possibilities = $total_languages * count(Shop::getShops(true));
 		$limit = max($max_possibilities, floor($limit / $max_possibilities) * $max_possibilities);
 
-		return Db::getInstance()->executeS('
-			SELECT p.id_product, pl.id_lang, pl.id_shop, pl.name pname, p.reference, p.ean13, p.upc,
-				pl.description_short, pl.description, cl.name cname, m.name mname
-			FROM '._DB_PREFIX_.'product p
+		$sql = 'SELECT p.id_product, pl.id_lang, pl.id_shop';
+			if($weight_array['pname'] >= 1) {
+				$sql .= ', pl.name pname, ';
+			}
+			if($weight_array['reference'] >= 1) {
+				$sql .= ', p.reference';
+			}
+			if($weight_array['ean13'] >= 1) {
+				$sql .= ', p.ean13';
+			}
+			if($weight_array['upc'] >= 1) {
+				$sql .= ', p.upc';
+			}
+			if($weight_array['description_short'] >= 1) {
+				$sql .= ', pl.description_short';
+			}
+			if($weight_array['description'] >= 1) {
+				$sql .= ', pl.description,';
+			}
+			if($weight_array['cname'] >= 1) {
+				$sql .= ', cl.name cname';
+			}
+			if($weight_array['mname'] >= 1) {
+				$sql .= ', m.name mname';
+			}
+			
+			' FROM '._DB_PREFIX_.'product p
 			LEFT JOIN '._DB_PREFIX_.'product_lang pl
 				ON p.id_product = pl.id_product
 			'.Shop::addSqlAssociation('product', 'p').'
@@ -396,7 +419,7 @@ class SearchCore
 			AND product_shop.visibility IN ("both", "search")
 			'.($id_product ? 'AND p.id_product = '.(int)$id_product : '').'
 			LIMIT '.(int)$limit
-		);
+		return Db::getInstance()->executeS($sql);
 	}
 
 	public static function indexation($full = false, $id_product = false)
@@ -470,7 +493,7 @@ class SearchCore
 		$total_languages = count(Language::getLanguages(false));
 
 		// Products are processed 50 by 50 in order to avoid overloading MySQL
-		while (($products = Search::getProductsToIndex($total_languages, $id_product, 50)) && (count($products) > 0))
+		while (($products = Search::getProductsToIndex($total_languages, $id_product, 50, $weight_array)) && (count($products) > 0))
 		{
 			// Now each non-indexed product is processed one by one, langage by langage
 			foreach ($products as $product)
