@@ -383,7 +383,7 @@ class SearchCore
 
 		$sql = 'SELECT p.id_product, pl.id_lang, pl.id_shop';
 			if($weight_array['pname'] >= 1) {
-				$sql .= ', pl.name pname, ';
+				$sql .= ', pl.name pname';
 			}
 			if($weight_array['reference'] >= 1) {
 				$sql .= ', p.reference';
@@ -398,7 +398,7 @@ class SearchCore
 				$sql .= ', pl.description_short';
 			}
 			if($weight_array['description'] >= 1) {
-				$sql .= ', pl.description,';
+				$sql .= ', pl.description';
 			}
 			if($weight_array['cname'] >= 1) {
 				$sql .= ', cl.name cname';
@@ -407,7 +407,7 @@ class SearchCore
 				$sql .= ', m.name mname';
 			}
 			
-			' FROM '._DB_PREFIX_.'product p
+			$sql .= ' FROM '._DB_PREFIX_.'product p
 			LEFT JOIN '._DB_PREFIX_.'product_lang pl
 				ON p.id_product = pl.id_product
 			'.Shop::addSqlAssociation('product', 'p').'
@@ -418,7 +418,7 @@ class SearchCore
 			WHERE product_shop.indexed = 0
 			AND product_shop.visibility IN ("both", "search")
 			'.($id_product ? 'AND p.id_product = '.(int)$id_product : '').'
-			LIMIT '.(int)$limit
+			LIMIT '.(int)$limit;
 		return Db::getInstance()->executeS($sql);
 	}
 
@@ -498,9 +498,15 @@ class SearchCore
 			// Now each non-indexed product is processed one by one, langage by langage
 			foreach ($products as $product)
 			{
-				$product['tags'] = Search::getTags($db, (int)$product['id_product'], (int)$product['id_lang']);
-				$product['attributes'] = Search::getAttributes($db, (int)$product['id_product'], (int)$product['id_lang']);
-				$product['features'] = Search::getFeatures($db, (int)$product['id_product'], (int)$product['id_lang']);
+				if($weight_array['tags'] >= 1) {
+					$product['tags'] = Search::getTags($db, (int)$product['id_product'], (int)$product['id_lang']);
+				}
+				if($weight_array['attributes'] >= 1) {
+					$product['attributes'] = Search::getAttributes($db, (int)$product['id_product'], (int)$product['id_lang']);
+				}
+				if($weight_array['features'] >= 1) {
+					$product['features'] = Search::getFeatures($db, (int)$product['id_product'], (int)$product['id_lang']);
+				}
 
 				// Data must be cleaned of html, bad characters, spaces and anything, then if the resulting words are long enough, they're added to the array
 				$product_array = array();
